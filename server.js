@@ -53,8 +53,21 @@ function broadcastBuzzUpdate(code) {
 
 io.on('connection', (socket) => {
   // ---- Host creates a new room ----
-  socket.on('createRoom', () => {
-    const code = generateRoomCode();
+  socket.on('createRoom', ({ customCode } = {}) => {
+    let code;
+    if (customCode && customCode.length >= 1) {
+      code = customCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+      if (code.length === 0) {
+        socket.emit('roomCreateError', { error: '영문/숫자만 사용할 수 있어요.' });
+        return;
+      }
+      if (rooms.has(code)) {
+        socket.emit('roomCreateError', { error: `이미 사용 중인 코드예요: ${code}` });
+        return;
+      }
+    } else {
+      code = generateRoomCode();
+    }
     rooms.set(code, {
       hostSocketId: socket.id,
       players: new Map(),
@@ -121,6 +134,7 @@ io.on('connection', (socket) => {
     socket.emit('joinResult', { success: true, code, nickname });
     socket.emit('buzzUpdate', { buzzes: room.buzzes });
     socket.emit('lockUpdate', { locked: room.locked });
+    if (room.design) socket.emit('designUpdate', room.design);
     broadcastPlayerList(code);
   });
 
@@ -183,6 +197,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---- Host: broadcast design to all players ----
+  socket.on('designUpdate', (design) => {
+    const code = socket.data.roomCode;
+    if (!code || socket.data.role !== 'host') return;
+    const room = rooms.get(code);
+    if (!room) return;
+    room.design = design;
+    // broadcast to everyone else in the room (players)
+    socket.to(code).emit('designUpdate', design);
+  });
+
   // ---- Host: lock / unlock buzzer ----
   socket.on('toggleLock', () => {
     const code = socket.data.roomCode;
@@ -230,7 +255,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// ---- CSV export for host (opens in Excel) ----
+// ---- XLSX export for host - 라운드별 시트 구분 ----
 app.get('/export/:code', (req, res) => {
   const code = (req.params.code || '').toUpperCase();
   const room = rooms.get(code);
@@ -239,26 +264,156 @@ app.get('/export/:code', (req, res) => {
     return;
   }
 
-  const escapeCsv = (val) => {
-    const str = String(val ?? '');
-    if (/[",\n]/.test(str)) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
-  const rows = [['라운드', '순서', '닉네임', '답안', '제출시각']];
+  // Group history by round
+  const byRound = {};
   room.history.forEach((h) => {
-    const time = new Date(h.time).toLocaleString('ko-KR');
-    rows.push([h.round, h.order, h.nickname, h.answer, time]);
+    if (!byRound[h.round]) byRound[h.round] = [];
+    byRound[h.round].push(h);
   });
 
-  // UTF-8 BOM so Excel reads Korean characters correctly
-  const csv = '\uFEFF' + rows.map((r) => r.map(escapeCsv).join(',')).join('\r\n');
+  // Build a minimal xlsx binary in memory (pure JS, no library needed)
+  // We use the XML-based xlsx (Office Open XML) format
+  const rounds = Object.keys(byRound).map(Number).sort((a, b) => a - b);
 
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="quiz_results_${code}.csv"`);
-  res.send(csv);
+  function xmlEsc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function makeSheet(rows) {
+    // rows: Array of Arrays
+    let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>`;
+    rows.forEach((row, ri) => {
+      xml += `<row r="${ri + 1}">`;
+      row.forEach((cell, ci) => {
+        const colLetter = String.fromCharCode(65 + ci);
+        const ref = `${colLetter}${ri + 1}`;
+        const val = String(cell ?? '');
+        // Use inline string type
+        xml += `<c r="${ref}" t="inlineStr"><is><t>${xmlEsc(val)}</t></is></c>`;
+      });
+      xml += `</row>`;
+    });
+    xml += `</sheetData></worksheet>`;
+    return xml;
+  }
+
+  // Build all sheet data
+  const header = ['순서', '닉네임', '답안', '제출시각'];
+  const sheetDefs = [];
+
+  if (rounds.length === 0) {
+    sheetDefs.push({ name: '라운드 1', rows: [header] });
+  } else {
+    rounds.forEach((r) => {
+      const rows = [header, ...byRound[r].map((h) => [
+        h.order,
+        h.nickname,
+        h.answer,
+        new Date(h.time).toLocaleString('ko-KR'),
+      ])];
+      sheetDefs.push({ name: `라운드 ${r}`, rows });
+    });
+  }
+
+  // JSZip-less approach: build xlsx as a zip manually using stored (no compression) method
+  // Each file is stored as-is, using the ZIP stored method (compression=0)
+  function toBytes(str) {
+    const buf = Buffer.from(str, 'utf8');
+    return buf;
+  }
+
+  function crc32(buf) {
+    let crc = 0xFFFFFFFF;
+    const table = crc32.table || (crc32.table = (() => {
+      const t = [];
+      for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[i] = c;
+      }
+      return t;
+    })());
+    for (let i = 0; i < buf.length; i++) crc = table[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function uint16LE(n) { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; }
+  function uint32LE(n) { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; }
+
+  function zipEntry(filename, data) {
+    const fnBuf = Buffer.from(filename, 'utf8');
+    const crc = crc32(data);
+    const local = Buffer.concat([
+      Buffer.from([0x50, 0x4B, 0x03, 0x04]), // local file header sig
+      uint16LE(20), uint16LE(0), uint16LE(0), // version, flags, compression
+      uint16LE(0), uint16LE(0),               // mod time, mod date
+      uint32LE(crc),
+      uint32LE(data.length), uint32LE(data.length), // compressed = uncompressed
+      uint16LE(fnBuf.length), uint16LE(0),    // filename len, extra len
+      fnBuf, data,
+    ]);
+    return { local, fnBuf, crc, size: data.length };
+  }
+
+  // Build xlsx parts
+  const contentTypes = toBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheetDefs.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`);
+
+  const relsMain = toBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
+
+  const wbRels = toBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetDefs.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}</Relationships>`);
+
+  const workbook = toBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetDefs.map((s, i) => `<sheet name="${xmlEsc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`);
+
+  const files = [
+    { name: '[Content_Types].xml', data: contentTypes },
+    { name: '_rels/.rels', data: relsMain },
+    { name: 'xl/workbook.xml', data: workbook },
+    { name: 'xl/_rels/workbook.xml.rels', data: wbRels },
+    ...sheetDefs.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: toBytes(makeSheet(s.rows)) })),
+  ];
+
+  // Build zip
+  const entries = files.map(f => ({ ...zipEntry(f.name, f.data), name: f.name }));
+  let offset = 0;
+  const localParts = [];
+  const offsets = [];
+  entries.forEach(e => {
+    offsets.push(offset);
+    localParts.push(e.local);
+    offset += e.local.length;
+  });
+
+  // Central directory
+  const cdParts = entries.map((e, i) => {
+    const fnBuf = e.fnBuf;
+    return Buffer.concat([
+      Buffer.from([0x50, 0x4B, 0x01, 0x02]),
+      uint16LE(20), uint16LE(20), uint16LE(0), uint16LE(0),
+      uint16LE(0), uint16LE(0),
+      uint32LE(e.crc),
+      uint32LE(e.size), uint32LE(e.size),
+      uint16LE(fnBuf.length), uint16LE(0), uint16LE(0),
+      uint16LE(0), uint16LE(0), uint32LE(0),
+      uint32LE(offsets[i]),
+      fnBuf,
+    ]);
+  });
+
+  const cd = Buffer.concat(cdParts);
+  const cdOffset = offset;
+  const eocd = Buffer.concat([
+    Buffer.from([0x50, 0x4B, 0x05, 0x06]),
+    uint16LE(0), uint16LE(0),
+    uint16LE(entries.length), uint16LE(entries.length),
+    uint32LE(cd.length), uint32LE(cdOffset),
+    uint16LE(0),
+  ]);
+
+  const xlsx = Buffer.concat([...localParts, cd, eocd]);
+  const filename = `quiz_results_${code}.xlsx`;
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  res.send(xlsx);
 });
 
 const PORT = process.env.PORT || 3000;

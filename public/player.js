@@ -183,3 +183,61 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+/* ══ 디자인 적용 (호스트가 보낸 설정 반영) ══ */
+function hexToRgb(hex) {
+  const h = hex.replace('#','');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+function rgbToHex(r,g,b) {
+  return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function darken(hex,amt){ const[r,g,b]=hexToRgb(hex); return rgbToHex(r*(1-amt),g*(1-amt),b*(1-amt)); }
+function lighten(hex,amt){ const[r,g,b]=hexToRgb(hex); return rgbToHex(r+(255-r)*amt,g+(255-g)*amt,b+(255-b)*amt); }
+
+function applyDesign(d) {
+  if (!d) return;
+  const root = document.documentElement;
+  if (d.accent)  { root.style.setProperty('--accent', d.accent); root.style.setProperty('--accent-dim', darken(d.accent, 0.25)); }
+  if (d.bg)      root.style.setProperty('--bg', d.bg);
+  if (d.surface) { root.style.setProperty('--surface', d.surface); root.style.setProperty('--surface-2', lighten(d.surface, 0.06)); }
+  if (d.text)    root.style.setProperty('--text', d.text);
+
+  // 브랜드 타이틀
+  const brandTitle = document.querySelector('.brand');
+  if (brandTitle && d.title) {
+    const dot = brandTitle.querySelector('.dot');
+    if (dot) dot.style.background = d.accent;
+    brandTitle.childNodes.forEach(n => { if (n.nodeType === 3) n.textContent = ` ${d.title}`; });
+  }
+
+  // 버저 버튼 모양
+  const buzzer = document.getElementById('buzzerBtn');
+  if (buzzer && d.shape) {
+    const radiusMap = { circle: '50%', rounded: '24px', square: '8px' };
+    buzzer.style.borderRadius = radiusMap[d.shape] || '50%';
+  }
+  if (buzzer && d.accent) {
+    buzzer.style.background = `radial-gradient(circle at 35% 30%, ${lighten(d.accent,0.15)} 0%, ${d.accent} 55%, ${darken(d.accent,0.2)} 100%)`;
+    buzzer.style.boxShadow  = `0 12px 0 ${darken(d.accent,0.25)}, 0 16px 30px ${d.accent}55`;
+  }
+
+  // 로고 이미지
+  const brand = document.querySelector('.brand');
+  if (brand) {
+    const existingLogo = brand.querySelector('img.brand-logo');
+    if (d.logo) {
+      if (!existingLogo) {
+        const img = document.createElement('img');
+        img.className = 'brand-logo';
+        img.style.cssText = 'height:28px;object-fit:contain;vertical-align:middle;margin-right:4px;';
+        brand.insertBefore(img, brand.firstChild);
+      }
+      brand.querySelector('img.brand-logo').src = d.logo;
+    } else if (existingLogo) {
+      existingLogo.remove();
+    }
+  }
+}
+
+socket.on('designUpdate', applyDesign);

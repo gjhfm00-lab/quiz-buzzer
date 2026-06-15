@@ -9,6 +9,7 @@ const codeInput = document.getElementById('codeInput');
 const joinBtn = document.getElementById('joinBtn');
 
 const nicknameTag = document.getElementById('nicknameTag');
+const playerCountPill = document.getElementById('playerCountPill');
 const lockPill = document.getElementById('lockPill');
 const answerInput = document.getElementById('answerInput');
 const buzzerBtn = document.getElementById('buzzerBtn');
@@ -21,6 +22,18 @@ const emptyState = document.getElementById('emptyState');
 let myNickname = null;
 let locked = false;
 let hasBuzzed = false;
+
+// Pre-fill room code from URL (e.g. ?code=ABCD from a QR code) and focus nickname
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('code');
+  if (code) {
+    codeInput.value = code.toUpperCase();
+    nicknameInput.focus();
+  } else {
+    nicknameInput.focus();
+  }
+});
 
 // ---------- join ----------
 function tryJoin() {
@@ -55,6 +68,11 @@ socket.on('joinResult', (res) => {
   nicknameTag.textContent = myNickname;
   joinCard.style.display = 'none';
   gameScreen.style.display = 'block';
+});
+
+// ---------- player count ----------
+socket.on('playerListUpdate', ({ count }) => {
+  playerCountPill.textContent = `참가자 ${count}명`;
 });
 
 // ---------- lock state ----------
@@ -137,15 +155,21 @@ socket.on('buzzUpdate', ({ buzzes }) => {
 
   buzzList.innerHTML = buzzes
     .map((b) => {
-      const answer = b.answer
-        ? escapeHtml(b.answer)
-        : '<span style="opacity:0.5;">(답안 미입력)</span>';
-      const mine = b.nickname === myNickname ? ' style="border-color: var(--accent);"' : '';
+      const isMine = b.nickname === myNickname;
+      let answer;
+      if (isMine) {
+        answer = b.answer
+          ? escapeHtml(b.answer)
+          : '<span style="opacity:0.5;">(답안 미입력)</span>';
+      } else {
+        answer = '<span style="opacity:0.5;">제출 완료</span>';
+      }
+      const mine = isMine ? ' style="border-color: var(--accent);"' : '';
       return `
         <li class="buzz-item"${mine}>
           <div class="buzz-rank">${b.order}</div>
           <div class="buzz-info">
-            <div class="buzz-nickname">${escapeHtml(b.nickname)}</div>
+            <div class="buzz-nickname">${escapeHtml(b.nickname)}${isMine ? ' (나)' : ''}</div>
             <div class="buzz-answer">${answer}</div>
           </div>
         </li>

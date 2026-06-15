@@ -41,12 +41,17 @@
           <div class="label">참가자 입장 코드</div>
           <div class="code" id="roomCodeDisplay">----</div>
           <div class="hint">참가자는 이 코드를 입력해 방에 들어옵니다.</div>
+          <div class="qr-wrap">
+            <canvas id="qrCanvas"></canvas>
+            <div class="hint">QR코드를 스캔하면 바로 입장할 수 있어요</div>
+          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="host-bar">
           <span class="pill" id="playerCountPill">참가자 0명</span>
+          <span class="pill" id="roundPill">라운드 1</span>
           <span class="pill unlocked" id="lockPill">버저 활성화됨</span>
         </div>
         <div class="btn-row">
@@ -57,17 +62,37 @@
 
       <div class="card">
         <div class="meta-row">
+          <h2 style="margin:0;">참가자 목록</h2>
+          <span class="count">총 <span id="playerListCount">0</span>명</span>
+        </div>
+        <div class="player-tags" id="playerTags"></div>
+        <div class="empty-state" id="playerEmptyState">아직 입장한 참가자가 없습니다.</div>
+      </div>
+
+      <div class="card">
+        <div class="meta-row">
           <h2 style="margin:0;">버저 순서</h2>
           <span class="count">총 <span id="buzzCount">0</span>명 입력</span>
         </div>
         <ul class="buzz-list" id="buzzList"></ul>
         <div class="empty-state" id="emptyState">아직 버저를 누른 참가자가 없습니다.</div>
       </div>
+
+      <div class="card">
+        <h2>결과 다운로드</h2>
+        <p class="lead" style="margin-bottom: 12px;">
+          지금까지의 모든 라운드 버저 기록을 엑셀(CSV) 파일로 내려받을 수 있어요.
+        </p>
+        <div class="btn-row">
+          <a class="btn btn-secondary" id="downloadBtn" href="#" download>📥 전체 결과 다운로드 (CSV)</a>
+        </div>
+      </div>
     </div>
 
     <div class="footer-note">호스트 화면 · 새로고침해도 위쪽 "기존 방으로 돌아가기"로 복구할 수 있어요.</div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="host.js"></script>
 </body>

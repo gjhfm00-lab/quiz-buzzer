@@ -10,12 +10,18 @@ const reconnectCode = document.getElementById('reconnectCode');
 
 const roomCodeDisplay = document.getElementById('roomCodeDisplay');
 const playerCountPill = document.getElementById('playerCountPill');
+const roundPill = document.getElementById('roundPill');
 const lockPill = document.getElementById('lockPill');
 const lockBtn = document.getElementById('lockBtn');
 const resetBtn = document.getElementById('resetBtn');
 const buzzList = document.getElementById('buzzList');
 const buzzCount = document.getElementById('buzzCount');
 const emptyState = document.getElementById('emptyState');
+const playerTags = document.getElementById('playerTags');
+const playerListCount = document.getElementById('playerListCount');
+const playerEmptyState = document.getElementById('playerEmptyState');
+const downloadBtn = document.getElementById('downloadBtn');
+const qrCanvas = document.getElementById('qrCanvas');
 
 let currentCode = null;
 let locked = false;
@@ -27,6 +33,17 @@ function showHostPanel(code) {
   hostPanel.style.display = 'block';
   // remember the code locally so a refresh can offer reconnect
   try { localStorage.setItem('quizbuzz_host_code', code); } catch (e) {}
+
+  // result download link
+  downloadBtn.href = `/export/${code}`;
+
+  // QR code linking straight to the player join page with the code pre-filled
+  const joinUrl = `${location.origin}/player.html?code=${code}`;
+  if (window.QRCode) {
+    QRCode.toCanvas(qrCanvas, joinUrl, { width: 180, margin: 1 }, (err) => {
+      if (err) console.error(err);
+    });
+  }
 }
 
 createBtn.addEventListener('click', () => {
@@ -65,8 +82,40 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ---------- player list / counts ----------
-socket.on('playerListUpdate', ({ count }) => {
+socket.on('playerListUpdate', ({ players, count }) => {
   playerCountPill.textContent = `참가자 ${count}명`;
+  playerListCount.textContent = count;
+
+  if (!players || players.length === 0) {
+    playerTags.innerHTML = '';
+    playerEmptyState.style.display = 'block';
+    return;
+  }
+  playerEmptyState.style.display = 'none';
+
+  playerTags.innerHTML = players
+    .map(
+      (name) => `
+        <div class="player-tag">
+          <span>${escapeHtml(name)}</span>
+          <button class="player-kick" title="내쫓기" data-name="${escapeHtml(name)}">✕</button>
+        </div>
+      `
+    )
+    .join('');
+
+  playerTags.querySelectorAll('.player-kick').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (confirm(`${btn.dataset.name} 님을 방에서 내보낼까요?`)) {
+        socket.emit('kickPlayer', { nickname: btn.dataset.name });
+      }
+    });
+  });
+});
+
+// ---------- round number ----------
+socket.on('roundUpdate', ({ round }) => {
+  roundPill.textContent = `라운드 ${round}`;
 });
 
 // ---------- lock toggle ----------

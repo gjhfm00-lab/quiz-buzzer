@@ -20,7 +20,7 @@
 
       <div class="field">
         <label for="nicknameInput">닉네임</label>
-        <input type="text" id="nicknameInput" maxlength="20" placeholder="예: 클로드" />
+        <input type="text" id="nicknameInput" maxlength="20" placeholder="예: 객석번호 + 능력자명" />
       </div>
 
       <div class="field">
@@ -40,7 +40,8 @@
       <div class="card">
         <div class="game-header">
           <div class="nickname-tag"><span id="nicknameTag"></span> 님</div>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+            <span class="pill" id="roundBadge" style="color:var(--gold); border-color:#4a3e00;">라운드 1</span>
             <span class="pill" id="playerCountPill">참가자 0명</span>
             <span class="pill unlocked" id="lockPill">버저 활성화됨</span>
           </div>

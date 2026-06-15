@@ -149,6 +149,7 @@
       <nav class="tab-nav">
         <button class="tab-btn active" data-tab="main">🎮 진행</button>
         <button class="tab-btn" data-tab="players">👥 참가자</button>
+        <button class="tab-btn" data-tab="rooms">🏠 방 관리</button>
         <button class="tab-btn" data-tab="design">🎨 디자인</button>
       </nav>
 
@@ -212,6 +213,18 @@
           </div>
           <div class="player-tags" id="playerTags"></div>
           <div class="empty-state" id="playerEmptyState">아직 입장한 참가자가 없습니다.</div>
+        </div>
+      </div>
+
+      <!-- 탭 3: 방 관리 -->
+      <div class="tab-panel" id="tab-rooms">
+        <div class="card">
+          <div class="meta-row">
+            <h2 style="margin:0;">생성된 방 목록</h2>
+            <button class="btn btn-secondary" id="refreshRoomsBtn" style="width:auto;padding:8px 14px;font-size:13px;">🔄 새로고침</button>
+          </div>
+          <ul class="buzz-list" id="roomList" style="gap:10px;"></ul>
+          <div class="empty-state" id="roomEmptyState">생성된 방이 없습니다.</div>
         </div>
       </div>
 

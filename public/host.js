@@ -313,6 +313,44 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ══════════════════════════════════════════
+   ROOM LIST (방 관리 탭)
+══════════════════════════════════════════ */
+const roomListEl    = document.getElementById('roomList');
+const roomEmptyState= document.getElementById('roomEmptyState');
+const refreshRoomsBtn= document.getElementById('refreshRoomsBtn');
+
+refreshRoomsBtn.addEventListener('click', () => socket.emit('getRoomList'));
+
+socket.on('roomList', (list) => {
+  if (!list || list.length === 0) {
+    roomListEl.innerHTML = '';
+    roomEmptyState.style.display = 'block';
+    return;
+  }
+  roomEmptyState.style.display = 'none';
+  roomListEl.innerHTML = list.map(r => {
+    const created = new Date(r.createdAt).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    const isCurrent = r.code === currentCode;
+    return `<li class="buzz-item" style="${isCurrent ? 'border-color:var(--gold);' : ''}">
+      <div class="buzz-info">
+        <div class="buzz-nickname" style="font-size:20px;letter-spacing:3px;">${escapeHtml(r.code)}${isCurrent ? ' <span style="font-size:12px;color:var(--gold);">현재 방</span>' : ''}</div>
+        <div class="buzz-answer">참가자 ${r.playerCount}명 · 라운드 ${r.round} · 생성: ${created} · ${r.locked ? '🔒 잠김' : '🟢 활성화'}</div>
+      </div>
+      ${!isCurrent ? `<button class="buzz-remove" style="color:var(--accent);font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--accent);background:transparent;cursor:pointer;white-space:nowrap;" data-code="${escapeHtml(r.code)}">삭제</button>` : ''}
+    </li>`;
+  }).join('');
+
+  roomListEl.querySelectorAll('[data-code]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code;
+      if (confirm(`"${code}" 방을 삭제하면 해당 방의 참가자가 모두 퇴장됩니다. 계속할까요?`)) {
+        socket.emit('deleteRoom', { code });
+      }
+    });
+  });
+});
+
+/* ══════════════════════════════════════════
    ROOM SETUP
 ══════════════════════════════════════════ */
 let currentCode = null;

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>호스트 화면 | Quiz Buzzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── 탭 네비게이션 ── */
+    .tab-nav {
+      display: flex; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 4px; width: 100%; margin-bottom: 16px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 6px; border: none; border-radius: 10px;
+      background: transparent; color: var(--text-muted);
+      font-family: var(--font-display); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .tab-btn.active { background: var(--surface-2); color: var(--text); }
+    .tab-panel { display: none; width: 100%; }
+    .tab-panel.active { display: block; }
+
+    /* ── 디자인 설정 ── */
+    .design-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .design-grid { grid-template-columns: 1fr; } }
+
+    .design-item { display: flex; flex-direction: column; gap: 6px; }
+    .design-item label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+
+    .color-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 12px;
+    }
+    .color-row input[type="color"] {
+      width: 32px; height: 32px; border: none; padding: 0;
+      background: transparent; cursor: pointer; border-radius: 6px;
+    }
+    .color-row span { font-size: 13px; color: var(--text-muted); font-family: monospace; }
+
+    .shape-btns { display: flex; gap: 8px; }
+    .shape-btn {
+      flex: 1; padding: 10px; border: 1px solid var(--border);
+      border-radius: 10px; background: var(--surface-2);
+      color: var(--text-muted); font-size: 13px; font-weight: 600;
+      cursor: pointer; text-align: center; transition: border-color 0.15s, color 0.15s;
+    }
+    .shape-btn.active { border-color: var(--accent); color: var(--text); }
+
+    .img-upload-box {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 80px; background: var(--surface-2);
+      border: 2px dashed var(--border); border-radius: 10px;
+      overflow: hidden; cursor: pointer; position: relative; transition: border-color 0.15s;
+    }
+    .img-upload-box:hover { border-color: var(--accent); }
+    .img-upload-box img { max-height: 70px; max-width: 100%; object-fit: contain; }
+    .img-upload-box span { font-size: 13px; color: var(--text-muted); padding: 12px; text-align: center; }
+    .img-upload-box input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+
+    /* 배경 이미지 미리보기 */
+    .bg-preview {
+      width: 100%; height: 80px; border-radius: 10px;
+      border: 1px solid var(--border); overflow: hidden;
+      background: var(--surface-2); display: flex; align-items: center; justify-content: center;
+    }
+    .bg-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .bg-preview span { font-size: 13px; color: var(--text-muted); }
+
+    .remove-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); border-radius: 8px; padding: 6px 12px;
+      font-size: 12px; cursor: pointer; align-self: flex-start;
+    }
+    .remove-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* 미리보기 버저 */
+    .preview-buzzer-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 20px 0 8px; gap: 10px;
+    }
+    .preview-buzzer {
+      width: 100px; height: 100px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-size: 14px; font-weight: 700;
+      color: #fff; cursor: default;
+      transition: background 0.2s, border-radius 0.3s, box-shadow 0.2s;
+    }
+    .preview-label { font-size: 12px; color: var(--text-muted); }
+
+    .design-save-row { margin-top: 20px; }
+    .reset-link {
+      display: block; text-align: center; margin-top: 12px;
+      font-size: 13px; color: var(--text-muted); cursor: pointer; text-decoration: underline;
+    }
+    .reset-link:hover { color: var(--accent); }
+
+    /* 섹션 구분선 */
+    .design-section-title {
+      font-size: 12px; font-weight: 700; color: var(--text-muted);
+      letter-spacing: 1px; text-transform: uppercase;
+      margin: 20px 0 10px; border-top: 1px solid var(--border); padding-top: 16px;
+    }
+    .design-section-title:first-of-type { margin-top: 0; border-top: none; padding-top: 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand" id="brandEl">
+      <span id="brandIcon"><span class="dot" id="brandDot"></span></span>
+      <span id="brandTitle">QUIZ BUZZER</span>
+      <span style="color:var(--text-muted);"> · HOST</span>
+    </div>
+
+    <!-- ===== Step 1: 방 만들기 ===== -->
+    <div class="card" id="setupCard">
+      <h1>방 만들기</h1>
+      <p class="lead">원하는 방 코드를 직접 입력하거나, 비워두면 자동으로 생성됩니다.</p>
+      <div class="field">
+        <label for="customCode">방 코드 (영문/숫자, 최대 10자)</label>
+        <input type="text" id="customCode" class="code-input" maxlength="10" placeholder="예: QUIZ2026" style="font-size:18px; letter-spacing:4px;" />
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="createBtn">새 방 만들기</button>
+      </div>
+      <div class="error-msg" id="createError"></div>
+      <div style="margin-top: 22px;">
+        <p class="lead" style="margin-bottom: 8px;">이미 만든 방으로 돌아가려면 코드를 입력하세요.</p>
+        <div class="field">
+          <input type="text" id="reconnectCode" class="code-input" maxlength="10" placeholder="방 코드 입력" style="font-size:18px; letter-spacing:4px;" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="reconnectBtn">기존 방으로 돌아가기</button>
+        </div>
+        <div class="error-msg" id="setupError"></div>
+      </div>
+    </div>
+
+    <!-- ===== Step 2: 호스트 패널 ===== -->
+    <div id="hostPanel" style="display:none; width: 100%;">
+
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="main">🎮 진행</button>
+        <button class="tab-btn" data-tab="players">👥 참가자</button>
+        <button class="tab-btn" data-tab="design">🎨 디자인</button>
+      </nav>
+
+      <!-- 탭 1: 진행 -->
+      <div class="tab-panel active" id="tab-main">
+        <div class="card">
+          <div class="room-code-box">
+            <div class="label">참가자 입장 코드</div>
+            <div class="code" id="roomCodeDisplay">----</div>
+            <div class="hint">참가자는 이 코드를 입력해 방에 들어옵니다.</div>
+            <div class="qr-wrap">
+              <canvas id="qrCanvas"></canvas>
+              <div class="hint">QR코드를 스캔하면 바로 입장할 수 있어요</div>
+            </div>
+            <div style="margin-top:16px; width:100%;">
+              <label style="font-size:13px; color:var(--text-muted);">참가자 직접 입장 링크</label>
+              <div style="display:flex; gap:8px; margin-top:6px;">
+                <input type="text" id="joinLinkInput" readonly style="flex:1; font-size:13px; padding:10px 12px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); cursor:pointer;" />
+                <button class="btn btn-secondary" id="copyLinkBtn" style="width:auto; padding:10px 16px; font-size:13px;">복사</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="host-bar">
+            <span class="pill" id="playerCountPill">참가자 0명</span>
+            <span class="pill" id="roundPill">라운드 1</span>
+            <span class="pill unlocked" id="lockPill">버저 활성화됨</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" id="lockBtn">버저 잠그기</button>
+            <button class="btn btn-primary" id="resetBtn">다음 문제 (초기화)</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="meta-row">
+            <h2 style="margin:0;">버저 순서</h2>
+            <span class="count">총 <span id="buzzCount">0</span>명 입력</span>
+          </div>
+          <ul class="buzz-list" id="buzzList"></ul>
+          <div class="empty-state" id="emptyState">아직 버저를 누른 참가자가 없습니다.</div>
+        </div>
+
+        <div class="card">
+          <h2>결과 다운로드</h2>
+          <p class="lead" style="margin-bottom:12px;">모든 라운드 버저 기록을 엑셀로 내려받을 수 있어요. 라운드별로 시트가 구분됩니다.</p>
+          <div class="btn-row">
+            <a class="btn btn-secondary" id="downloadBtn" href="#">📥 전체 결과 다운로드 (Excel)</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭 2: 참가자 -->
+      <div class="tab-panel" id="tab-players">
+        <div class="card">
+          <div class="meta-row">
+            <h2 style="margin:0;">참가자 목록</h2>
+            <span class="count">총 <span id="playerListCount">0</span>명</span>
+          </div>
+          <div class="player-tags" id="playerTags"></div>
+          <div class="empty-state" id="playerEmptyState">아직 입장한 참가자가 없습니다.</div>
+        </div>
+      </div>
+
+      <!-- 탭 3: 디자인 설정 -->
+      <div class="tab-panel" id="tab-design">
+        <div class="card">
+          <h2>🎨 디자인 설정</h2>
+          <p class="lead">변경 후 "저장 및 적용"을 누르면 참가자 화면에도 즉시 반영됩니다.</p>
+
+          <!-- 색상 -->
+          <div class="design-section-title">색상</div>
+          <div class="design-grid">
+            <div class="design-item">
+              <label>메인 강조색 (버저 색)</label>
+              <div class="color-row">
+                <input type="color" id="colorAccent" value="#ff4655" />
+                <span id="colorAccentHex">#ff4655</span>
+              </div>
+            </div>
+            <div class="design-item">
+              <label>배경색</label>
+              <div class="color-row">
+                <input type="color" id="colorBg" value="#11121c" />
+                <span id="colorBgHex">#11121c</span>
+              </div>
+            </div>
+            <div class="design-item">
+              <label>카드 색상</label>
+              <div class="color-row">
+                <input type="color" id="colorSurface" value="#1c1e2e" />
+                <span id="colorSurfaceHex">#1c1e2e</span>
+              </div>
+            </div>
+            <div class="design-item">
+              <label>텍스트 색상</label>
+              <div class="color-row">
+                <input type="color" id="colorText" value="#f2f2f7" />
+                <span id="colorTextHex">#f2f2f7</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 배경 이미지 -->
+          <div class="design-section-title">배경 이미지</div>
+          <div class="design-item">
+            <label>배경 이미지 업로드 (배경색 위에 덮어씌워집니다)</label>
+            <div class="bg-preview" id="bgPreview"><span>배경 이미지 없음</span></div>
+            <div class="img-upload-box" style="margin-top:8px;">
+              <span>📁 클릭하여 이미지 선택</span>
+              <input type="file" id="bgFile" accept="image/*" />
+            </div>
+            <button class="remove-btn" id="bgRemoveBtn">배경 이미지 제거</button>
+          </div>
+
+          <!-- 버저 버튼 -->
+          <div class="design-section-title">버저 버튼</div>
+          <div class="design-item">
+            <label>버튼 모양</label>
+            <div class="shape-btns">
+              <button class="shape-btn active" data-shape="circle">⬤ 원형</button>
+              <button class="shape-btn" data-shape="rounded">▣ 둥근 사각형</button>
+              <button class="shape-btn" data-shape="square">■ 사각형</button>
+            </div>
+          </div>
+          <div class="design-item" style="margin-top:12px;">
+            <label>버튼 안 텍스트 (최대 5글자)</label>
+            <input type="text" id="buzzerText" maxlength="5" placeholder="BUZZ" style="text-align:center; font-size:18px; letter-spacing:2px; font-weight:700;" />
+          </div>
+          <div class="design-item" style="margin-top:12px;">
+            <label>버저 버튼 미리보기</label>
+            <div class="preview-buzzer-wrap">
+              <div class="preview-buzzer" id="previewBuzzer">BUZZ</div>
+              <span class="preview-label">참가자 화면에서 보이는 버저 모양</span>
+            </div>
+          </div>
+
+          <!-- 브랜드 -->
+          <div class="design-section-title">브랜드</div>
+          <div class="design-item">
+            <label>사이트 이름 (로고 텍스트)</label>
+            <input type="text" id="siteTitle" placeholder="QUIZ BUZZER" maxlength="30" />
+          </div>
+          <div class="design-item" style="margin-top:12px;">
+            <label>로고 앞 도형/아이콘 이미지 (작은 아이콘, 선택)</label>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <div class="img-upload-box" style="width:80px; height:80px; flex-shrink:0;">
+                <span style="font-size:20px;">+</span>
+                <input type="file" id="iconFile" accept="image/*" />
+              </div>
+              <div id="iconPreview" style="display:flex; align-items:center; gap:8px; flex:1;">
+                <span style="font-size:13px; color:var(--text-muted);">업로드하면 브랜드 이름 앞에 표시돼요</span>
+              </div>
+            </div>
+            <button class="remove-btn" id="iconRemoveBtn">아이콘 제거</button>
+          </div>
+          <div class="design-item" style="margin-top:12px;">
+            <label>로고 이미지 (텍스트 대신 사용, 선택)</label>
+            <div class="img-upload-box">
+              <span>📁 클릭하여 로고 이미지 선택</span>
+              <input type="file" id="logoFile" accept="image/*" />
+            </div>
+            <div class="img-upload-box" id="logoPreview" style="margin-top:8px; border-style:solid;">
+              <span>로고 이미지 없음</span>
+            </div>
+            <button class="remove-btn" id="logoRemoveBtn">로고 이미지 제거</button>
+          </div>
+
+          <div class="design-save-row">
+            <button class="btn btn-primary" id="saveDesignBtn">💾 설정 저장 및 적용</button>
+            <span class="reset-link" id="resetDesignBtn">기본값으로 초기화</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /hostPanel -->
+
+    <div class="footer-note">호스트 화면 · 새로고침해도 위쪽 "기존 방으로 돌아가기"로 복구할 수 있어요.</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="host.js"></script>
+</body>
+</html>

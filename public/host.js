@@ -326,7 +326,8 @@ document.getElementById('saveDesignBtn').addEventListener('click', async ()=>{
 
   saveDesign(currentDesign);
   applyDesign(currentDesign);
-  socket.emit('designUpdate', currentDesign); // 전체 브로드캐스트
+  suppressNextDesignUpdate = true; // 서버에서 되돌아오는 echo 무시
+  socket.emit('designUpdate', currentDesign);
 
   btn.disabled=false; btn.textContent='✅ 저장됨!';
   setTimeout(()=>{ btn.textContent='💾 설정 저장 및 적용'; },2000);
@@ -334,15 +335,19 @@ document.getElementById('saveDesignBtn').addEventListener('click', async ()=>{
 
 document.getElementById('resetDesignBtn').addEventListener('click', ()=>{
   if(!confirm('기본값으로 초기화할까요?'))return;
-  currentDesign={...DEFAULTS};
+  currentDesign = { ...DEFAULTS };
   saveDesign(currentDesign);
   applyDesign(currentDesign);
+  suppressNextDesignUpdate = true;
   socket.emit('designUpdate', currentDesign);
 });
 
 // 다른 호스트가 디자인을 바꾸면 이 호스트에도 반영
-socket.on('designUpdate', d=>{
-  currentDesign={...currentDesign,...d};
+// (단, 내가 방금 보낸 건 무시 — 로컬에서 이미 applyDesign 호출했으므로)
+let suppressNextDesignUpdate = false;
+socket.on('designUpdate', d => {
+  if (suppressNextDesignUpdate) { suppressNextDesignUpdate = false; return; }
+  currentDesign = { ...currentDesign, ...d };
   applyDesign(currentDesign);
 });
 

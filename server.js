@@ -306,10 +306,10 @@ io.on('connection', (socket) => {
     });
 
     globalDesign = safeDesign;
-    saveGlobalDesign(safeDesign); // 파일에 저장 → 서버 재시작해도 유지
+    saveGlobalDesign(safeDesign);
 
-    // 나를 제외한 모든 접속자에게 전파 (다른 기기 호스트 포함)
-    socket.broadcast.emit('designUpdate', safeDesign);
+    // 나를 포함한 모든 접속자에게 전파 (io.emit = 전체 브로드캐스트)
+    io.emit('designUpdate', safeDesign);
 
     // 방 디자인에도 저장
     const code = socket.data.roomCode;

@@ -102,6 +102,22 @@
     }
     .reset-link:hover { color: var(--accent); }
 
+    /* 업로드 버튼 */
+    .upload-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 10px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); font-size: 13px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: border-color 0.15s;
+    }
+    .upload-label:hover { border-color: var(--accent); }
+    .upload-status {
+      font-size: 12px; color: var(--text-muted); flex: 1;
+    }
+    .upload-status.ok  { color: var(--success); }
+    .upload-status.err { color: var(--accent); }
+
     /* 섹션 구분선 */
     .design-section-title {
       font-size: 12px; font-weight: 700; color: var(--text-muted);
@@ -294,25 +310,27 @@
           <div class="design-section-title">배경 이미지</div>
           <div class="design-item">
             <label>PC 배경 이미지
-              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 1920×1080px, JPG/PNG, 2MB 이하</span>
+              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 1920×1080px · JPG/PNG · 5MB 이하</span>
             </label>
             <div class="bg-preview" id="bgPreviewPc"><span>PC 배경 이미지 없음</span></div>
-            <div class="img-upload-box" style="margin-top:8px;">
-              <span>📁 PC용 이미지 선택 (가로형)</span>
-              <input type="file" id="bgFilePc" accept="image/*" />
+            <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+              <label class="upload-label" for="bgFilePc">📁 PC 이미지 선택</label>
+              <input type="file" id="bgFilePc" accept="image/*" style="display:none;" />
+              <span class="upload-status" id="bgStatusPc"></span>
+              <button class="remove-btn" id="bgRemovePcBtn">제거</button>
             </div>
-            <button class="remove-btn" id="bgRemovePcBtn">PC 배경 제거</button>
           </div>
           <div class="design-item" style="margin-top:14px;">
             <label>모바일 배경 이미지
-              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 750×1334px, JPG/PNG, 1MB 이하</span>
+              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 750×1334px · JPG/PNG · 5MB 이하</span>
             </label>
             <div class="bg-preview" id="bgPreviewMobile"><span>모바일 배경 이미지 없음</span></div>
-            <div class="img-upload-box" style="margin-top:8px;">
-              <span>📁 모바일용 이미지 선택 (세로형)</span>
-              <input type="file" id="bgFileMobile" accept="image/*" />
+            <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+              <label class="upload-label" for="bgFileMobile">📁 모바일 이미지 선택</label>
+              <input type="file" id="bgFileMobile" accept="image/*" style="display:none;" />
+              <span class="upload-status" id="bgStatusMobile"></span>
+              <button class="remove-btn" id="bgRemoveMobileBtn">제거</button>
             </div>
-            <button class="remove-btn" id="bgRemoveMobileBtn">모바일 배경 제거</button>
           </div>
 
           <!-- 버저 버튼 -->
@@ -344,32 +362,32 @@
             <input type="text" id="siteTitle" placeholder="QUIZ BUZZER" maxlength="30" />
           </div>
           <div class="design-item" style="margin-top:12px;">
-            <label>로고 앞 도형/아이콘 이미지 (작은 아이콘, 선택)
-              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 64×64px, PNG(투명배경), 200KB 이하</span>
+            <label>로고 앞 아이콘 이미지 (선택)
+              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 64×64px · PNG 투명배경</span>
             </label>
-            <div style="display:flex; gap:10px; align-items:center;">
-              <div class="img-upload-box" style="width:80px; height:80px; flex-shrink:0;">
-                <span style="font-size:20px;">+</span>
-                <input type="file" id="iconFile" accept="image/*" />
-              </div>
-              <div id="iconPreview" style="display:flex; align-items:center; gap:8px; flex:1;">
-                <span style="font-size:13px; color:var(--text-muted);">업로드하면 브랜드 이름 앞에 표시돼요</span>
-              </div>
+            <div id="iconPreview" style="min-height:40px; display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+              <span style="font-size:13px; color:var(--text-muted);">업로드하면 브랜드 이름 앞에 표시돼요</span>
             </div>
-            <button class="remove-btn" id="iconRemoveBtn">아이콘 제거</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <label class="upload-label" for="iconFile">📁 아이콘 선택</label>
+              <input type="file" id="iconFile" accept="image/*" style="display:none;" />
+              <span class="upload-status" id="iconStatus"></span>
+              <button class="remove-btn" id="iconRemoveBtn">제거</button>
+            </div>
           </div>
           <div class="design-item" style="margin-top:12px;">
             <label>로고 이미지 (텍스트 대신 사용, 선택)
-              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 200×60px, PNG(투명배경), 300KB 이하</span>
+              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:6px;">권장: 200×60px · PNG 투명배경</span>
             </label>
-            <div class="img-upload-box">
-              <span>📁 클릭하여 로고 이미지 선택</span>
-              <input type="file" id="logoFile" accept="image/*" />
-            </div>
-            <div class="img-upload-box" id="logoPreview" style="margin-top:8px; border-style:solid;">
+            <div class="img-upload-box" id="logoPreview" style="border-style:solid; pointer-events:none; margin-bottom:8px;">
               <span>로고 이미지 없음</span>
             </div>
-            <button class="remove-btn" id="logoRemoveBtn">로고 이미지 제거</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <label class="upload-label" for="logoFile">📁 로고 선택</label>
+              <input type="file" id="logoFile" accept="image/*" style="display:none;" />
+              <span class="upload-status" id="logoStatus"></span>
+              <button class="remove-btn" id="logoRemoveBtn">제거</button>
+            </div>
           </div>
 
           <div class="design-save-row">

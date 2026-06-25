@@ -1,7 +1,7 @@
 {
   "name": "quiz-buzzer",
   "version": "1.0.0",
-  "description": "Real-time quiz buzzer app for up to 300 players",
+  "description": "Real-time quiz buzzer app for up to 700 players",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
     "socket.io": "^4.7.5"
   }
 }

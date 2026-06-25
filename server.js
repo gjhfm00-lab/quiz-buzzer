@@ -12,9 +12,22 @@ const server = http.createServer(app);
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+// 전역 디자인을 파일로 영속 저장 (서버 재시작해도 유지)
+const DESIGN_FILE = path.join(__dirname, 'global-design.json');
+
+function loadGlobalDesign() {
+  try {
+    if (fs.existsSync(DESIGN_FILE)) return JSON.parse(fs.readFileSync(DESIGN_FILE, 'utf8'));
+  } catch {}
+  return null;
+}
+
+function saveGlobalDesign(d) {
+  try { fs.writeFileSync(DESIGN_FILE, JSON.stringify(d), 'utf8'); } catch {}
+}
+
 // multer 설정 - 파일을 public/uploads에 저장
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
@@ -24,7 +37,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB 제한
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('이미지 파일만 업로드할 수 있습니다.'));
@@ -62,8 +75,8 @@ app.get('/join', (req, res) => {
   res.redirect(301, `/player.html?code=${code}`);
 });
 
-// 전역 디자인 설정 (방과 무관하게 공유, 누구나 변경 가능)
-let globalDesign = null;
+// 전역 디자인 설정 (방과 무관하게 공유 — 파일에서 복원)
+let globalDesign = loadGlobalDesign();
 
 // 연결 수 모니터링
 let peakConnections = 0;
@@ -119,7 +132,8 @@ function sendRoomList(socket) {
 
 io.on('connection', (socket) => {
 
-  // ── 방 만들기 ──
+  // 새로 접속한 누구에게든 현재 전역 디자인 즉시 전송
+  if (globalDesign) socket.emit('designUpdate', globalDesign);
   socket.on('createRoom', ({ customCode } = {}) => {
     let code;
     if (customCode && customCode.length >= 1) {
@@ -285,15 +299,19 @@ io.on('connection', (socket) => {
 
   // ── 디자인 브로드캐스트 (전역 - 모든 접속자에게 공유) ──
   socket.on('designUpdate', (design) => {
-    // base64 이미지 차단 (파일 업로드 API를 통해서만 이미지 등록)
+    // base64 이미지 차단
     const safeDesign = { ...design };
     ['bgImagePc','bgImageMobile','logo','icon','bgUrlPc','bgUrlMobile','logoUrl','iconUrl'].forEach(key => {
       if (safeDesign[key] && String(safeDesign[key]).startsWith('data:')) delete safeDesign[key];
     });
+
     globalDesign = safeDesign;
-    // 나를 제외한 모든 접속자에게 전파
+    saveGlobalDesign(safeDesign); // 파일에 저장 → 서버 재시작해도 유지
+
+    // 나를 제외한 모든 접속자에게 전파 (다른 기기 호스트 포함)
     socket.broadcast.emit('designUpdate', safeDesign);
-    // 방 안에도 저장 (나중에 입장하는 참가자용)
+
+    // 방 디자인에도 저장
     const code = socket.data.roomCode;
     if (code) {
       const room = rooms.get(code);
@@ -301,7 +319,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ── 전역 디자인 조회 (접속 시 현재 디자인 요청) ──
+  // ── 전역 디자인 조회 ──
   socket.on('getGlobalDesign', () => {
     if (globalDesign) socket.emit('designUpdate', globalDesign);
   });
